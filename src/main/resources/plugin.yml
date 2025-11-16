@@ -2,7 +2,7 @@ name: TempBuild
 version: '${version}'
 main: pl.flezy.tempbuild.TempBuild
 api-version: '1.19'
-authors: [ Flezy ]
+authors: [flezy]
 website: flezy.pl
 depend: [WorldGuard]
 commands:
