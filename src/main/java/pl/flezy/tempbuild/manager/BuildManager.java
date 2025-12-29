@@ -7,6 +7,7 @@ import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -47,6 +48,19 @@ public class BuildManager {
         return state != StateFlag.State.ALLOW;
     }
 
+    public static boolean isRegion(Location location) {
+        RegionContainer container = WorldGuard.getInstance()
+                .getPlatform()
+                .getRegionContainer();
+
+        StateFlag tempBuildFlag = TempBuild.getInstance().TEMP_BUILD_FLAG;
+
+        StateFlag.State state = container.createQuery()
+                .queryState(BukkitAdapter.adapt(location), null, tempBuildFlag);
+
+        return state == StateFlag.State.ALLOW;
+    }
+
     public static boolean canBreak(Player player, Location location) {
         if (placedBlocks.containsKey(location)) {
             return true;
@@ -67,7 +81,6 @@ public class BuildManager {
         BlockData blockData = block.getBlockData();
         placedBlocks.put(location, blockData);
 
-        // Dodaj górną połowę drzwi/innych multi-block struktur
         if (blockData instanceof Bisected bisected) {
             if (bisected.getHalf() == Bisected.Half.BOTTOM) {
                 Location topLocation = location.clone().add(0, 1, 0);

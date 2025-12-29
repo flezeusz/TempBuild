@@ -10,8 +10,11 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import pl.flezy.tempbuild.manager.BuildManager;
+
+import java.util.Iterator;
 
 public class BuildListener implements Listener {
 
@@ -49,6 +52,16 @@ public class BuildListener implements Listener {
             }
             BuildManager.placedBlocks.remove(location);
         }
+    }
+
+    @EventHandler
+    public void onBlockExplodeEvent(BlockExplodeEvent event) {
+        event.blockList().removeIf(block -> BuildManager.isRegion(block.getLocation()));
+    }
+
+    @EventHandler
+    public void onEntityExplodeEvent(EntityExplodeEvent event) {
+        event.blockList().removeIf(block -> BuildManager.isRegion(block.getLocation()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

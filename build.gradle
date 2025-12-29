@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'pl.flezy'
-version = '1.0.0'
+version = '1.0.2'
 
 repositories {
     mavenCentral()
@@ -35,6 +35,7 @@ dependencies {
 
 shadowJar {
     relocate("eu.okaeri", "pl.flezy.tempbuild.libs.eu.okaeri")
+    archiveClassifier.set('')
 }
 
 assemble.dependsOn(shadowJar)
