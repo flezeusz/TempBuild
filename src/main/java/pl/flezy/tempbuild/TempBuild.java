@@ -14,6 +14,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import pl.flezy.tempbuild.command.TempBuildCommand;
 import pl.flezy.tempbuild.config.Config;
 import pl.flezy.tempbuild.listener.BuildListener;
+import pl.flezy.tempbuild.listener.FireListener;
+import pl.flezy.tempbuild.manager.BlockDecayManager;
 
 import java.io.File;
 
@@ -46,9 +48,12 @@ public final class TempBuild extends JavaPlugin {
         loadConfig();
 
         getServer().getPluginManager().registerEvents(new BuildListener(), this);
+        getServer().getPluginManager().registerEvents(new FireListener(), this);
 
         getCommand("tempbuild").setExecutor(new TempBuildCommand());
         getCommand("tempbuild").setTabCompleter(new TempBuildCommand());
+
+        BlockDecayManager.initialize();
     }
 
     private void loadConfig() {

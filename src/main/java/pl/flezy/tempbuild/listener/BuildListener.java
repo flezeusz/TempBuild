@@ -1,6 +1,7 @@
 package pl.flezy.tempbuild.listener;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Bisected;
@@ -11,10 +12,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import pl.flezy.tempbuild.manager.BuildManager;
-
-import java.util.Iterator;
+import pl.flezy.tempbuild.TempBuild;
+import pl.flezy.tempbuild.config.Config;
+import pl.flezy.tempbuild.manager.BlockDecayManager;
+import pl.flezy.tempbuild.manager.TempBuildManager;
 
 public class BuildListener implements Listener {
 
@@ -22,15 +25,40 @@ public class BuildListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
-        if (BuildManager.hasBypass(player, location)) return;
+        if (TempBuildManager.hasBypass(player, location)) return;
 
-        if (!BuildManager.canTempBuild(player, location)) {
-            BlockState replaced = event.getBlockReplacedState();
-            if (replaced.getType().isCollidable()) {
+        if (!TempBuildManager.isDenied(player, location)) {
+            Config config = TempBuild.getInstance().config;
+
+            Block block = event.getBlock();
+            if (config.blockedBlocks.contains(block.getType())) {
                 event.setCancelled(true);
                 return;
             }
-            BuildManager.addPlayerBlock(location);
+
+            if (!BlockDecayManager.placedBlocks.containsKey(location)) {
+                BlockState replacedBlockState = event.getBlockReplacedState();
+                if (replacedBlockState.isCollidable()) {
+                    event.setCancelled(true);
+                    return;
+                }
+
+                if (!replacedBlockState.isCollidable() &&
+                        !TempBuildManager.isLiquid(replacedBlockState.getType()) &&
+                        !replacedBlockState.getType().isEmpty() &&
+                        !config.allowReplaceNonCollidableBlocks) {
+                    event.setCancelled(true);
+                    return;
+                }
+
+                if (TempBuildManager.isLiquid(replacedBlockState.getType()) &&
+                        !config.allowReplaceLiquids) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+
+            BlockDecayManager.addPlayerBlock(location);
         }
     }
 
@@ -38,60 +66,65 @@ public class BuildListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
-        if (BuildManager.hasBypass(player, location)) return;
+        if (TempBuildManager.hasBypass(player, location)) return;
 
-        if (!BuildManager.canBreak(player, location)){
+        if (!TempBuildManager.canBreak(player, location)){
             event.setCancelled(true);
-        } else if (BuildManager.placedBlocks.containsKey(location)) {
+        }
+        else if (BlockDecayManager.placedBlocks.containsKey(location)) {
             Block block = event.getBlock();
             if (block.getBlockData() instanceof Bisected bisected) {
                 if (bisected.getHalf() == Bisected.Half.TOP) {
                     Location bottomLocation = location.clone().add(0, -1, 0);
-                    BuildManager.placedBlocks.remove(bottomLocation);
+                    BlockDecayManager.placedBlocks.remove(bottomLocation);
                 }
             }
-            BuildManager.placedBlocks.remove(location);
+            BlockDecayManager.placedBlocks.remove(location);
         }
     }
 
     @EventHandler
     public void onBlockExplodeEvent(BlockExplodeEvent event) {
-        event.blockList().removeIf(block -> BuildManager.isRegion(block.getLocation()));
+        event.blockList().removeIf(block -> TempBuildManager.isRegion(block.getLocation()));
     }
 
     @EventHandler
     public void onEntityExplodeEvent(EntityExplodeEvent event) {
-        event.blockList().removeIf(block -> BuildManager.isRegion(block.getLocation()));
+        event.blockList().removeIf(block -> TempBuildManager.isRegion(block.getLocation()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Block block = event.getClickedBlock();
-        if (block != null && BuildManager.placedBlocks.containsKey(block.getLocation())) {
-            BuildManager.updateBlockData(block.getLocation());
+        if (block != null && BlockDecayManager.placedBlocks.containsKey(block.getLocation())) {
+            TempBuildManager.updateBlockData(block.getLocation());
 
             Location topLocation = block.getLocation().clone().add(0, 1, 0);
-            if (BuildManager.placedBlocks.containsKey(topLocation)) {
-                BuildManager.updateBlockData(topLocation);
+            if (BlockDecayManager.placedBlocks.containsKey(topLocation)) {
+                TempBuildManager.updateBlockData(topLocation);
             }
 
             Location bottomLocation = block.getLocation().clone().add(0, -1, 0);
-            if (BuildManager.placedBlocks.containsKey(bottomLocation)) {
-                BuildManager.updateBlockData(bottomLocation);
+            if (BlockDecayManager.placedBlocks.containsKey(bottomLocation)) {
+                TempBuildManager.updateBlockData(bottomLocation);
             }
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onBlockFromTo(BlockFromToEvent event) {
-        if (BuildManager.placedBlocks.containsKey(event.getToBlock().getLocation())) {
+        if (!TempBuild.getInstance().config.allowLiquidFlow) {
+            event.setCancelled(true);
+        }
+
+        if (BlockDecayManager.placedBlocks.containsKey(event.getToBlock().getLocation())) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onEntityChangeBlock(EntityChangeBlockEvent event) {
-        if (BuildManager.placedBlocks.containsKey(event.getBlock().getLocation())) {
+        if (BlockDecayManager.placedBlocks.containsKey(event.getBlock().getLocation())) {
             event.setCancelled(true);
         }
     }
@@ -99,8 +132,30 @@ public class BuildListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onBlockPhysics(BlockPhysicsEvent event) {
         Location location = event.getBlock().getLocation();
-        if (BuildManager.placedBlocks.containsKey(location)) {
-            BuildManager.updateBlockData(location);
+        if (BlockDecayManager.placedBlocks.containsKey(location)) {
+            TempBuildManager.updateBlockData(location);
+        }
+    }
+
+    @EventHandler
+    public void onEmptyBucket(PlayerBucketEmptyEvent event) {
+        Player player = event.getPlayer();
+        Block block = event.getBlock();
+        Location location = block.getLocation();
+        if (!TempBuildManager.isDenied(player, location)) {
+            Material insideBucketMaterial;
+            switch (event.getBucket()) {
+                case LAVA_BUCKET -> insideBucketMaterial = Material.LAVA;
+                case WATER_BUCKET -> insideBucketMaterial = Material.WATER;
+                case POWDER_SNOW -> insideBucketMaterial = Material.POWDER_SNOW;
+                default -> {
+                    return;
+                }
+            }
+
+            if (TempBuild.getInstance().config.blockedBlocks.contains(insideBucketMaterial)) {
+                event.setCancelled(true);
+            }
         }
     }
 }
