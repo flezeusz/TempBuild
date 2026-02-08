@@ -24,7 +24,7 @@ repositories {
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.19.2-R0.1-SNAPSHOT'
 
-    compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.8'
+    compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.15'
 
     implementation 'eu.okaeri:okaeri-configs-yaml-bukkit:5.0.9'
     implementation 'eu.okaeri:okaeri-configs-serdes-bukkit:5.0.9'
