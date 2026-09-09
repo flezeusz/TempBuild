@@ -22,7 +22,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'io.papermc.paper:paper-api:1.19.2-R0.1-SNAPSHOT'
+    compileOnly 'io.papermc.paper:paper-api:26.2.build.123-stable'
 
     compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.8'
 
